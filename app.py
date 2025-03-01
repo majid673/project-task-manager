@@ -7,7 +7,10 @@ from email.mime.text import MIMEText
 
 app = Flask(__name__)
 
-TASKS_FILE = "tasks.json"
+import os
+
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+TASKS_FILE = os.path.join(BASE_DIR, "tasks.json")
 
 def load_tasks():
     if os.path.exists(TASKS_FILE):
