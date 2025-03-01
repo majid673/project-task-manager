@@ -6,3 +6,5 @@
         "priority": "Medium"
     }
 ]
+with open(TASKS_FILE, "w") as f:
+    json.dump(tasks_to_save, f, indent=4)
