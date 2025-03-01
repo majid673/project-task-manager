@@ -38,9 +38,8 @@ def save_tasks(tasks):
         with open(TASKS_FILE, "w") as f:
             json.dump(tasks_to_save, f, indent=4)
     except Exception as e:
-        print(f"Error saving tasks to {TASKS_FILE}: {str(e)}")
-        raise
-
+       print(f"Error saving tasks to {TASKS_FILE}: {str(e)}")
+       raise
 
 def send_new_task_reminder(task, email_to, days_before):
     # تنظیمات ایمیل برای Gmail
