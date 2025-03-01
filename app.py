@@ -70,6 +70,7 @@ def send_new_task_reminder(task, email_to, days_before):
         print(f"Error sending reminder for new task '{task['title']}': {e}")
         # چاپ دیباگ بیشتر برای خطاها
         print(f"Debug - Email details: From={email_from}, To={email_to}, Subject={msg['Subject']}")
+        print(f"Debug - Full exception: {str(e)}")
 
 def send_update_reminder(task, old_task, email_to, days_before):
     # تنظیمات ایمیل برای Gmail
@@ -111,6 +112,7 @@ def send_update_reminder(task, old_task, email_to, days_before):
         print(f"Error sending reminder for updated task '{task['title']}': {e}")
         # چاپ دیباگ بیشتر برای خطاها
         print(f"Debug - Email details: From={email_from}, To={email_to}, Subject={msg['Subject']}")
+        print(f"Debug - Full exception: {str(e)}")
 
 # بارگذاری تسک‌ها وقتی برنامه اجرا می‌شه
 tasks = load_tasks()
