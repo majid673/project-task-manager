@@ -321,9 +321,23 @@
 
         // به‌روزرسانی لیست تسک‌ها بعد از ویرایش
         function updateTaskList(updated_tasks) {
+            console.log("Updated tasks received:", updated_tasks); // دیباگ
             const tasksList = document.getElementById("tasksList");
+            if (!tasksList) {
+                console.error("Tasks list element not found!");
+                return;
+            }
             tasksList.innerHTML = ""; // پاک کردن لیست فعلی
-            updated_tasks.forEach(item => {
+            if (!Array.isArray(updated_tasks)) {
+                console.error("updated_tasks is not an array:", updated_tasks);
+                return;
+            }
+            updated_tasks.forEach((item, idx) => {
+                console.log(`Processing task ${idx}:`, item); // دیباگ
+                if (!item || !item.task || !item.index) {
+                    console.error("Invalid task item:", item);
+                    return;
+                }
                 const li = document.createElement("li");
                 li.className = "task-item";
                 li.innerHTML = `
@@ -336,13 +350,14 @@
                         <form method="POST" class="delete-form">
                             <button type="submit" name="delete" value="${item.index}">Delete</button>
                         </form>
-                    </div>
+                   </div>
                 `;
                 tasksList.appendChild(li);
-            });
-            // به‌روزرسانی window.tasks برای استفاده در آینده
-            window.tasks = updated_tasks.map(item => item.task);
-        }
+           });
+           // به‌روزرسانی window.tasks برای استفاده در آینده
+           window.tasks = updated_tasks.map(item => item.task);
+           console.log("Updated window.tasks:", window.tasks); // دیباگ
+      }
     </script>
 </body>
 </html>
