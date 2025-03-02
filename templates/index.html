@@ -360,6 +360,10 @@
             console.log("Task list updated successfully!");
             // اطمینان از رندر DOM
             tasksList.dispatchEvent(new Event('DOMSubtreeModified')); // فایر کردن یه رویداد برای اطمینان از رندر
+            // اجبار مرورگر به رندر مجدد
+            tasksList.style.display = 'none';
+            tasksList.offsetHeight; // این خط باعث ریفلوی DOM می‌شه
+            tasksList.style.display = 'block';
         }
     </script>
 </body>
