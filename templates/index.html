@@ -321,7 +321,7 @@
 
         // به‌روزرسانی لیست تسک‌ها بعد از ویرایش
         function updateTaskList(updated_tasks) {
-            console.log("Updated tasks received:", updated_tasks); // دیباگ
+            console.log("Updated tasks received:", updated_tasks);
             const tasksList = document.getElementById("tasksList");
             if (!tasksList) {
                 console.error("Tasks list element not found!");
@@ -333,7 +333,7 @@
                 return;
             }
             updated_tasks.forEach((item, idx) => {
-                console.log(`Processing task ${idx}:`, item); // دیباگ
+                console.log(`Processing task ${idx}:`, item);
                 if (!item || !item.task || !item.index) {
                     console.error("Invalid task item:", item);
                     return;
@@ -350,14 +350,17 @@
                         <form method="POST" class="delete-form">
                             <button type="submit" name="delete" value="${item.index}">Delete</button>
                         </form>
-                   </div>
+                    </div>
                 `;
                 tasksList.appendChild(li);
-           });
-           // به‌روزرسانی window.tasks برای استفاده در آینده
-           window.tasks = updated_tasks.map(item => item.task);
-           console.log("Updated window.tasks:", window.tasks); // دیباگ
-      }
+                console.log(`Task ${idx} added to DOM`); // دیباگ اضافی
+            });
+            window.tasks = updated_tasks.map(item => item.task);
+            console.log("Updated window.tasks:", window.tasks);
+            console.log("Task list updated successfully!");
+            // اطمینان از رندر DOM
+            tasksList.dispatchEvent(new Event('DOMSubtreeModified')); // فایر کردن یه رویداد برای اطمینان از رندر
+        }
     </script>
 </body>
 </html>
