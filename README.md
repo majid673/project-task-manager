@@ -71,7 +71,7 @@ Feel free to reach out to me if you have any questions or want to collaborate:
   
 ## License
 
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
 ---
 
 Thank you for checking out my project!  
