@@ -43,8 +43,8 @@ def save_tasks(tasks):
 
 def send_new_task_reminder(task, email_to, days_before):
     # تنظیمات ایمیل برای Gmail
-    email_from = "arashar905@gmail.com"  # ایمیل فرستنده
-    password = "maym ugmc dytw mbkm"  # رمز عبور اپلیکیشن Gmail
+    email_from = os.getenv("EMAIL_FROM", "default_email@example.com")
+    password = os.getenv("EMAIL_PASSWORD", "default_password")
     
     # ساخت متن ایمیل با فقط اطلاعات فعلی برای تسک جدید
     reminder_text = f"New Task Notification:\n\n"
