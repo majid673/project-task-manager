@@ -158,12 +158,12 @@ def home():
                 print(f"Task deleted at index {task_index}")
     tasks.sort(key=lambda x: (x["deadline"], {"Low": 3, "Medium": 2, "High": 1}[x["priority"]]))
     enumerated_tasks = list(enumerate(tasks))
-    save_tasks(tasks)  # ذخیره تسک‌ها بعد از هر تغییر
     formatted_tasks = []
     for index, task in enumerated_tasks:
-    task_copy = task.copy()
-    task_copy["deadline"] = task["deadline"].strftime("%Y-%m-%d")
-    formatted_tasks.append((index, task_copy))
+        task_copy = task.copy()
+        task_copy["deadline"] = task["deadline"].strftime("%Y-%m-%d")
+        formatted_tasks.append((index, task_copy))
+    save_tasks(tasks)  # ذخیره تسک‌ها بعد از هر تغییر    
     return render_template("index.html", tasks=enumerated_tasks)
 
 @app.route("/edit_task/<int:index>", methods=["POST"])
