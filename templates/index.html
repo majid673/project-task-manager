@@ -321,23 +321,9 @@
 
         // به‌روزرسانی لیست تسک‌ها بعد از ویرایش
         function updateTaskList(updated_tasks) {
-            console.log("Updated tasks received:", updated_tasks);
             const tasksList = document.getElementById("tasksList");
-            if (!tasksList) {
-                console.error("Tasks list element not found!");
-                return;
-            }
             tasksList.innerHTML = ""; // پاک کردن لیست فعلی
-            if (!Array.isArray(updated_tasks)) {
-                console.error("updated_tasks is not an array:", updated_tasks);
-                return;
-            }
-            updated_tasks.forEach((item, idx) => {
-                console.log(`Processing task ${idx}:`, item);
-                if (!item || !item.task || !item.index) {
-                    console.error("Invalid task item:", item);
-                    return;
-                }
+            updated_tasks.forEach(item => {
                 const li = document.createElement("li");
                 li.className = "task-item";
                 li.innerHTML = `
@@ -353,17 +339,9 @@
                     </div>
                 `;
                 tasksList.appendChild(li);
-                console.log(`Task ${idx} added to DOM`); // دیباگ اضافی
             });
+            // به‌روزرسانی window.tasks برای استفاده در آینده
             window.tasks = updated_tasks.map(item => item.task);
-            console.log("Updated window.tasks:", window.tasks);
-            console.log("Task list updated successfully!");
-            // اطمینان از رندر DOM
-            tasksList.dispatchEvent(new Event('DOMSubtreeModified')); // فایر کردن یه رویداد برای اطمینان از رندر
-            // اجبار مرورگر به رندر مجدد
-            tasksList.style.display = 'none';
-            tasksList.offsetHeight; // این خط باعث ریفلوی DOM می‌شه
-            tasksList.style.display = 'block';
         }
     </script>
 </body>
