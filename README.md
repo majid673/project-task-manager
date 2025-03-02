@@ -40,9 +40,9 @@ To run the project locally on your machine, follow these steps:
 2. **Navigate to the project folder**: cd project-task-manager
    
 3. **Create a virtual environment** (optional but recommended):
-                  python -m venv venv
-                  Activate the virtual environment:    - On Windows:    venv\Scripts\activate   
-                                                       - On Mac/Linux:  source venv/bin/activate                              
+                  -python -m venv venv
+                  -Activate the virtual environment:    - On Windows:    venv\Scripts\activate    - On Mac/Linux:  source venv/bin/activate 
+                                                                                   
 4. **Install dependencies**:  pip install -r requirements.txt
  
 5. **Set up environment variables (optional)**: If you want to use email reminders, set up your Gmail App Password and update the `email_from` and `password` in 
