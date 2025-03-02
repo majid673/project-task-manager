@@ -205,7 +205,10 @@ def edit_task(index):
                         send_update_reminder(tasks[index], old_task, "majid_0280@yahoo.com", days_diff)  # ایمیل گیرنده به‌روزرسانی‌شده
                 # برگرداندن لیست به‌روزرسانی‌شده تسک‌ها به‌صورت JSON
                 updated_tasks = [{"index": i, "task": task} for i, task in enumerate(tasks)]
-                return jsonify({"status": "success", "task": tasks[index], "tasks": updated_tasks})
+                task_response = tasks[index].copy()
+                task_response["deadline"] = tasks[index]["deadline"].strftime("%Y-%m-%d")
+                updated_tasks_formatted = [{"index": i, "task": {**task, "deadline": task["deadline"].strftime("%Y-%m-%d")}} for i, task in updated_tasks]
+                return jsonify({"status": "success", "task": task_response, "tasks": updated_tasks_formatted})
             except ValueError as e:
                 print(f"Error editing task: {e}")
                 return jsonify({"status": "error", "message": str(e)})
