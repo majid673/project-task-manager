@@ -238,17 +238,32 @@
             .then(data => {
                 console.log("Fetch response data:", data);
                 if (data.status === "success") {
-                   console.log("Edit successful, updating UI with task:", data.task);
-                   updateTaskList(data.tasks);
+                    console.log("Edit successful, updating single task:", data.task);
+                    // به‌روزرسانی فقط وظیفه تغییرکرده
+                    const taskElement = document.querySelector(`#tasksList li:nth-child(${parseInt(currentTaskIndex) + 1})`);
+                    if (taskElement) {
+                        const taskDetails = taskElement.querySelector('.task-details');
+                        const priorityText = taskElement.querySelector('.priority-text');
+                        taskDetails.textContent = `${data.task.title} - Duration: ${data.task.duration} min - Deadline: ${data.task.deadline}`;
+                        priorityText.textContent = `Priority: ${data.task.priority}`;
+                        // به‌روزرسانی window.tasks
+                        window.tasks[currentTaskIndex] = data.task;
+                        console.log("Updated task in DOM and window.tasks:", window.tasks[currentTaskIndex]);
+                    } else {
+                        console.error("Task element not found for index:", currentTaskIndex);
+                        updateTaskList(data.tasks); // در صورت پیدا نشدن، کل لیست رو به‌روزرسانی کن
+                    }
                 } else {
                     console.error("Edit failed:", data.message);
                     alert("Error: " + data.message);
-               }
+                }
             })
             .catch(error => {
                 console.error('Fetch error:', error);
                 alert("An error occurred while saving the task: " + error.message);
             });
+
+            closeModal();
         }
         
 
