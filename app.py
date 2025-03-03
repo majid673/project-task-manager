@@ -121,6 +121,7 @@ def send_update_reminder(task, old_task, email_to, days_before):
 def home():
     try:
         if request.method == "POST":
+            logging.info(f"Received POST request with form data: {request.form}")
             if "title" in request.form:
                 title = request.form.get("title", "No title")
                 duration = request.form.get("duration", "0")
@@ -128,11 +129,17 @@ def home():
                 month = request.form.get("month", "1")
                 year = request.form.get("year", "2025")
                 priority = request.form.get("priority", "Medium")
+                logging.info(f"Extracted form values: title={title}, duration={duration}, day={day}, month={month}, year={year}, priority={priority}")
                 try:
-                    deadline = date(int(year), int(month), int(day))
+                    year = int(year)
+                    month = int(month)
+                    day = int(day)
+                    duration = int(duration)
+                    logging.info(f"Converted values: year={year}, month={month}, day={day}, duration={duration}")
+                    deadline = date(year, month, day)
                     task = Task(
                         title=title,
-                        duration=int(duration),
+                        duration=duration,
                         deadline=deadline,
                         priority=priority
                     )
@@ -145,8 +152,11 @@ def home():
                         logging.info("Would send new task reminder")
                         # send_new_task_reminder(task.to_dict(), "majid_0280@yahoo.com", days_diff)
                 except ValueError as e:
-                    logging.error(f"Error adding task: {e}")
-                    return jsonify({"status": "error", "message": f"Invalid date: {str(e)}"}), 400
+                    logging.error(f"Error adding task: {str(e)}")
+                    return jsonify({"status": "error", "message": f"Invalid date or duration: {str(e)}"}), 400
+                except Exception as e:
+                    logging.error(f"Unexpected error adding task: {str(e)}")
+                    return jsonify({"status": "error", "message": f"Server error adding task: {str(e)}"}), 500
             elif "delete" in request.form:
                 task_id = int(request.form["delete"])
                 task = Task.query.get(task_id)
@@ -154,15 +164,20 @@ def home():
                     db.session.delete(task)
                     db.session.commit()
                     logging.info(f"Task deleted with ID {task_id}")
+                else:
+                    logging.warning(f"Task not found for deletion with ID {task_id}")
+        logging.info("Fetching tasks from database")
         tasks = Task.query.order_by(Task.deadline, db.case(
             (Task.priority == "Low", 3),
             (Task.priority == "Medium", 2),
             (Task.priority == "High", 1)
         )).all()
+        logging.info(f"Raw tasks from database: {[{ 'id': task.id, 'title': task.title, 'duration': task.duration, 'deadline': task.deadline, 'priority': task.priority } for task in tasks]}")
         formatted_tasks = [task.to_dict() for task in tasks]
+        logging.info("Formatting task deadlines")
         for task in formatted_tasks:
             task["deadline"] = task["deadline"].strftime("%Y-%m-%d")
-        logging.info("Rendering home page with tasks:", formatted_tasks)
+        logging.info(f"Rendering home page with formatted tasks: {formatted_tasks}")
         return render_template("index.html", tasks=formatted_tasks)
     except Exception as e:
         logging.error(f"Error in home route: {str(e)}")
