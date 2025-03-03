@@ -36,7 +36,6 @@ def load_tasks():
     except Exception as e:
         logging.error(f"Error loading tasks: {str(e)}")
         raise
-
 def save_tasks(tasks):
     try:
         tasks_to_save = [
@@ -48,12 +47,15 @@ def save_tasks(tasks):
             }
             for task in tasks
         ]
-        with open(TASKS_FILE, "w") as f:
-            json.dump(tasks_to_save, f, indent=4)
-        logging.info("Tasks saved successfully")
+        # غیرفعال کردن ذخیره‌سازی فایل موقتاً
+        logging.info(f"Would save tasks to {TASKS_FILE}: {tasks_to_save}")
+        # with open(TASKS_FILE, "w") as f:
+        #     json.dump(tasks_to_save, f, indent=4)
+        # logging.info("Tasks saved successfully")
     except Exception as e:
         logging.error(f"Error saving tasks: {str(e)}")
         raise
+
 
 def send_new_task_reminder(task, email_to, days_before):
     try:
