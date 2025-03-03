@@ -117,7 +117,6 @@ def send_update_reminder(task, old_task, email_to, days_before):
         logging.error(f"Error sending reminder for updated task '{task['title']}': {str(e)}")
         logging.error(f"Debug - Email details: From={email_from}, To={email_to}, Subject={msg['Subject']}")
         raise
-
 @app.route("/", methods=["GET", "POST"])
 def home():
     try:
@@ -160,17 +159,15 @@ def home():
             (Task.priority == "Medium", 2),
             (Task.priority == "High", 1)
         )).all()
-        enumerated_tasks = [(task.id, task.to_dict()) for task in tasks]
-        formatted_tasks = []
-        for index, task in enumerated_tasks:
-            task_copy = task.copy()
-            task_copy["deadline"] = task["deadline"].strftime("%Y-%m-%d")
-            formatted_tasks.append((index, task_copy))
-        logging.info("Rendering home page")
+        formatted_tasks = [task.to_dict() for task in tasks]
+        for task in formatted_tasks:
+            task["deadline"] = task["deadline"].strftime("%Y-%m-%d")
+        logging.info("Rendering home page with tasks:", formatted_tasks)
         return render_template("index.html", tasks=formatted_tasks)
     except Exception as e:
         logging.error(f"Error in home route: {str(e)}")
         return jsonify({"status": "error", "message": f"Server error in home route: {str(e)}"}), 500
+
 
 @app.route("/edit_task/<int:index>", methods=["POST"])
 def edit_task(index):
