@@ -107,21 +107,21 @@
     </form>
     <h2>Scheduled Tasks</h2>
     <ul id="tasksList">
-        {% for index, task in tasks %}
-        <li class="task-item" data-id="{{ index }}">
-            <div class="task-details">
-                {{ task.title }} - Duration: {{ task.duration }} min - Deadline: {{ task.deadline }}
-            </div>
-            <div class="task-actions">
-                <p class="priority-text">Priority: {{ task.priority }}</p>
-                <button type="button" name="edit" onclick="openEditModal({{ index }})">Edit</button>
-                <form method="POST" class="delete-form">
-                    <button type="submit" name="delete" value="{{ index }}">Delete</button>
-                </form>
-            </div>
-        </li>
-        {% endfor %}
-    </ul>
+    {% for task in tasks %}
+    <li class="task-item" data-id="{{ task.id }}">
+        <div class="task-details">
+            {{ task.title }} - Duration: {{ task.duration }} min - Deadline: {{ task.deadline }}
+        </div>
+        <div class="task-actions">
+            <p class="priority-text">Priority: {{ task.priority }}</p>
+            <button type="button" name="edit" onclick="openEditModal({{ task.id }})">Edit</button>
+            <form method="POST" class="delete-form">
+                <button type="submit" name="delete" value="{{ task.id }}">Delete</button>
+            </form>
+        </div>
+    </li>
+    {% endfor %}
+</ul>
 
     <div id="editModal" class="modal">
         <div class="modal-content">
@@ -180,7 +180,7 @@
 
         console.log("Tasks loaded:", {{ tasks|tojson|safe }});
 
-        window.tasks = {{ tasks|tojson|safe }}.map(item => item[1]);// اضافه کردن تسک‌ها به عنوان متغیر جهانی
+       window.tasks = {{ tasks|tojson|safe }};// اضافه کردن تسک‌ها به عنوان متغیر جهانی
         
         function openEditModal(taskId) {
             console.log("Edit button clicked for taskId:", taskId);
@@ -203,8 +203,7 @@
             } else {
                 console.error("Task not found with ID:", taskId);
             }
-        }
-       
+        }       
 
         function saveEdit() {
             const title = document.getElementById("editTitle").value;
