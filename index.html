@@ -180,12 +180,12 @@
 
         console.log("Tasks loaded:", {{ tasks|tojson|safe }});
 
-        window.tasks = {{ tasks|tojson|safe }}; // اضافه کردن تسک‌ها به عنوان متغیر جهانی
-
-        function openEditModal(index) {
-            console.log("Edit button clicked for index:", index);
-            currentTaskIndex = index;
-            const task = window.tasks.find(t => t.id === index);
+        window.tasks = {{ tasks|tojson|safe }}.map(item => item[1]);// اضافه کردن تسک‌ها به عنوان متغیر جهانی
+        
+        function openEditModal(taskId) {
+            console.log("Edit button clicked for taskId:", taskId);
+            currentTaskIndex = taskId;
+            const task = window.tasks.find(t => t.id === taskId);
             if (task) {
                 console.log("Task found:", task);
                 try {
@@ -201,9 +201,10 @@
                     console.error("Error setting modal values:", error);
                 }
             } else {
-                console.error("Task not found at index:", index);
+                console.error("Task not found with ID:", taskId);
             }
         }
+       
 
         function saveEdit() {
             const title = document.getElementById("editTitle").value;
