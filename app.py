@@ -1,10 +1,11 @@
 from flask import Flask, request, render_template, jsonify
+from flask_sqlalchemy import SQLAlchemy
 import json
 from datetime import datetime, date, timedelta
 import os
 import smtplib
 from email.mime.text import MIMEText
-import logging  # اضافه کردن ماژول لاگینگ
+import logging
 
 app = Flask(__name__)
 
@@ -13,49 +14,37 @@ logging.basicConfig(
     level=logging.DEBUG,
     format='%(asctime)s [%(levelname)s] %(message)s',
     handlers=[
-        logging.FileHandler("app.log"),  # ذخیره لاگ‌ها تو یه فایل
-        logging.StreamHandler()  # نمایش لاگ‌ها تو کنسول
+        logging.FileHandler("app.log"),
+        logging.StreamHandler()
     ]
 )
 
-TASKS_FILE = "tasks.json"
+# تنظیم دیتابیس SQLite
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///tasks.db'
+app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
+db = SQLAlchemy(app)
 
-def load_tasks():
-    try:
-        if os.path.exists(TASKS_FILE):
-            with open(TASKS_FILE, "r") as f:
-                tasks = json.load(f)
-                for task in tasks:
-                    task["deadline"] = datetime.strptime(task["deadline"], "%Y-%m-%d").date()
-                    if "priority" not in task:
-                        task["priority"] = "Medium"
-                logging.info(f"Tasks loaded successfully: {tasks}")
-                return tasks
-        logging.info("No tasks file found, starting with empty list")
-        return []
-    except Exception as e:
-        logging.error(f"Error loading tasks: {str(e)}")
-        raise
-def save_tasks(tasks):
-    try:
-        tasks_to_save = [
-            {
-                "title": task["title"],
-                "duration": task["duration"],
-                "deadline": task["deadline"].isoformat(),
-                "priority": task["priority"]
-            }
-            for task in tasks
-        ]
-        # غیرفعال کردن ذخیره‌سازی فایل موقتاً
-        logging.info(f"Would save tasks to {TASKS_FILE}: {tasks_to_save}")
-        # with open(TASKS_FILE, "w") as f:
-        #     json.dump(tasks_to_save, f, indent=4)
-        # logging.info("Tasks saved successfully")
-    except Exception as e:
-        logging.error(f"Error saving tasks: {str(e)}")
-        raise
+# تعریف مدل Task برای دیتابیس
+class Task(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    title = db.Column(db.String(100), nullable=False)
+    duration = db.Column(db.Integer, nullable=False)
+    deadline = db.Column(db.Date, nullable=False)
+    priority = db.Column(db.String(20), nullable=False)
 
+    def to_dict(self):
+        return {
+            "id": self.id,
+            "title": self.title,
+            "duration": self.duration,
+            "deadline": self.deadline,
+            "priority": self.priority
+        }
+
+# ایجاد دیتابیس و جداول
+with app.app_context():
+    db.create_all()
+    logging.info("Database initialized")
 
 def send_new_task_reminder(task, email_to, days_before):
     try:
@@ -129,9 +118,6 @@ def send_update_reminder(task, old_task, email_to, days_before):
         logging.error(f"Debug - Email details: From={email_from}, To={email_to}, Subject={msg['Subject']}")
         raise
 
-# بارگذاری تسک‌ها وقتی برنامه اجرا می‌شه
-tasks = load_tasks()
-
 @app.route("/", methods=["GET", "POST"])
 def home():
     try:
@@ -145,36 +131,41 @@ def home():
                 priority = request.form.get("priority", "Medium")
                 try:
                     deadline = date(int(year), int(month), int(day))
-                    task = {
-                        "title": title,
-                        "duration": int(duration),
-                        "deadline": deadline,
-                        "priority": priority
-                    }
-                    tasks.append(task)
-                    logging.info(f"Task added: {task}")
+                    task = Task(
+                        title=title,
+                        duration=int(duration),
+                        deadline=deadline,
+                        priority=priority
+                    )
+                    db.session.add(task)
+                    db.session.commit()
+                    logging.info(f"Task added: {task.to_dict()}")
                     today = date.today()
-                    days_diff = (task["deadline"] - today).days
+                    days_diff = (deadline - today).days
                     if days_diff in [0, 1, 2]:
-                        logging.info("Would send new task reminder")  # غیرفعال کردن موقت ایمیل
-                        # send_new_task_reminder(task, "majid_0280@yahoo.com", days_diff)
+                        logging.info("Would send new task reminder")
+                        # send_new_task_reminder(task.to_dict(), "majid_0280@yahoo.com", days_diff)
                 except ValueError as e:
                     logging.error(f"Error adding task: {e}")
-                    task = {"title": title, "duration": duration, "deadline": f"{year}-{month}-{day}", "priority": priority}
-                    tasks.append(task)
+                    return jsonify({"status": "error", "message": f"Invalid date: {str(e)}"}), 400
             elif "delete" in request.form:
-                task_index = int(request.form["delete"])
-                if 0 <= task_index < len(tasks):
-                    tasks.pop(task_index)
-                    logging.info(f"Task deleted at index {task_index}")
-        tasks.sort(key=lambda x: (x["deadline"], {"Low": 3, "Medium": 2, "High": 1}[x["priority"]]))
-        enumerated_tasks = list(enumerate(tasks))
+                task_id = int(request.form["delete"])
+                task = Task.query.get(task_id)
+                if task:
+                    db.session.delete(task)
+                    db.session.commit()
+                    logging.info(f"Task deleted with ID {task_id}")
+        tasks = Task.query.order_by(Task.deadline, db.case(
+            (Task.priority == "Low", 3),
+            (Task.priority == "Medium", 2),
+            (Task.priority == "High", 1)
+        )).all()
+        enumerated_tasks = [(task.id, task.to_dict()) for task in tasks]
         formatted_tasks = []
         for index, task in enumerated_tasks:
             task_copy = task.copy()
             task_copy["deadline"] = task["deadline"].strftime("%Y-%m-%d")
             formatted_tasks.append((index, task_copy))
-        save_tasks(tasks)
         logging.info("Rendering home page")
         return render_template("index.html", tasks=formatted_tasks)
     except Exception as e:
@@ -185,16 +176,17 @@ def home():
 def edit_task(index):
     try:
         logging.info(f"Received edit request for index {index}")
-        if 0 <= index < len(tasks):
+        task = Task.query.get(index)
+        if task:
             data = request.get_json()
             logging.info(f"Received data: {data}")
             if data:
-                title = data.get("title", tasks[index]["title"])
-                duration = data.get("duration", tasks[index]["duration"])
+                title = data.get("title", task.title)
+                duration = data.get("duration", task.duration)
                 day = data.get("day")
                 month = data.get("month")
                 year = data.get("year")
-                priority = data.get("priority", tasks[index]["priority"])
+                priority = data.get("priority", task.priority)
 
                 logging.info(f"Extracted values: title={title}, duration={duration}, day={day}, month={month}, year={year}, priority={priority}")
 
@@ -202,19 +194,10 @@ def edit_task(index):
                     logging.warning("Missing required date fields")
                     return jsonify({"status": "error", "message": "Day, month, and year are required"}), 400
 
-                current_deadline = tasks[index]["deadline"]
-                if not isinstance(current_deadline, date):
-                    logging.error("Current deadline is not a valid date object")
-                    return jsonify({"status": "error", "message": "Current deadline is not a valid date object"}), 500
-
-                default_day = current_deadline.day
-                default_month = current_deadline.month
-                default_year = current_deadline.year
-
                 try:
-                    day = int(day) if day else default_day
-                    month = int(month) if month else default_month
-                    year = int(year) if year else default_year
+                    day = int(day)
+                    month = int(month)
+                    year = int(year)
                 except ValueError as e:
                     logging.error(f"Error converting date values to integers: {str(e)}")
                     return jsonify({"status": "error", "message": "Invalid date values: day, month, and year must be integers"}), 400
@@ -227,46 +210,48 @@ def edit_task(index):
                     logging.error(f"ValueError creating date: {str(e)}")
                     return jsonify({"status": "error", "message": f"Invalid date: {str(e)}"}), 400
 
-                old_task = tasks[index].copy()
-                tasks[index] = {
-                    "title": title,
-                    "duration": int(duration) if duration else 0,
-                    "deadline": deadline,
-                    "priority": priority
-                }
+                old_task = task.to_dict()
+                task.title = title
+                task.duration = int(duration) if duration else 0
+                task.deadline = deadline
+                task.priority = priority
 
-                logging.info(f"Saving tasks: {tasks}")
-                save_tasks(tasks)
-                logging.info(f"Task edited at index {index}: {tasks[index]}")
+                logging.info(f"Updating task with ID {index}: {task.to_dict()}")
+                db.session.commit()
+                logging.info(f"Task edited with ID {index}")
 
                 today = date.today()
-                days_diff = (tasks[index]["deadline"] - today).days
+                days_diff = (deadline - today).days
                 logging.info(f"Days difference: {days_diff}")
-                logging.info(f"Deadline: {tasks[index]['deadline']}")
+                logging.info(f"Deadline: {task.deadline}")
                 logging.info(f"Old Deadline: {old_task['deadline']}")
-                logging.info(f"Priority: {tasks[index]['priority']}")
+                logging.info(f"Priority: {task.priority}")
                 logging.info(f"Old Priority: {old_task['priority']}")
-                logging.info(f"Deadline changed: {tasks[index]['deadline'] != old_task['deadline']}")
-                logging.info(f"Priority changed: {tasks[index]['priority'] != old_task['priority']}")
+                logging.info(f"Deadline changed: {task.deadline != old_task['deadline']}")
+                logging.info(f"Priority changed: {task.priority != old_task['priority']}")
 
                 if days_diff in [0, 1, 2]:
-                    if tasks[index]["deadline"] != old_task["deadline"] or tasks[index]["priority"] != old_task["priority"]:
+                    if task.deadline != datetime.strptime(old_task["deadline"], "%Y-%m-%d").date() or task.priority != old_task["priority"]:
                         logging.info("Would send update reminder")
-                        # send_update_reminder(tasks[index], old_task, "majid_0280@yahoo.com", days_diff)
+                        # send_update_reminder(task.to_dict(), old_task, "majid_0280@yahoo.com", days_diff)
 
-                updated_tasks = [{"index": i, "task": task} for i, task in enumerate(tasks)]
-                task_response = tasks[index].copy()
-                task_response["deadline"] = tasks[index]["deadline"].strftime("%Y-%m-%d")
-                updated_tasks_formatted = [{"index": i, "task": {**task, "deadline": task["deadline"].strftime("%Y-%m-%d")}} for i, task in updated_tasks]
+                updated_tasks = Task.query.order_by(Task.deadline, db.case(
+                    (Task.priority == "Low", 3),
+                    (Task.priority == "Medium", 2),
+                    (Task.priority == "High", 1)
+                )).all()
+                updated_tasks_formatted = [{"index": task.id, "task": {**task.to_dict(), "deadline": task.deadline.strftime("%Y-%m-%d")}} for task in updated_tasks]
 
+                task_response = task.to_dict()
+                task_response["deadline"] = task.deadline.strftime("%Y-%m-%d")
                 logging.info(f"Returning response: {{'status': 'success', 'task': {task_response}, 'tasks': {updated_tasks_formatted}}}")
                 return jsonify({"status": "success", "task": task_response, "tasks": updated_tasks_formatted})
             else:
                 logging.warning("No data provided in request")
                 return jsonify({"status": "error", "message": "No data provided"}), 400
         else:
-            logging.warning(f"Task not found at index {index}")
+            logging.warning(f"Task not found with ID {index}")
             return jsonify({"status": "error", "message": "Task not found"}), 404
     except Exception as e:
-        logging.error(f"Error in edit_task: {str(e)}", exc_info=True)  # چاپ استک کامل خطا
+        logging.error(f"Error in edit_task: {str(e)}", exc_info=True)
         return jsonify({"status": "error", "message": f"Server error: {str(e)}"}), 500
