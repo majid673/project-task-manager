@@ -2,37 +2,363 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Task Manager</title>
+    <title>Task Scheduler</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
-        body {
-            font-family: Arial, sans-serif;
+        .task-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .task-details {
+            width: 100%;
             text-align: center;
-            padding: 50px;
-            background-color: #f4f4f4;
         }
-        h1 {
-            color: #007bff;
+        .task-actions {
+            width: 100%;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 5px;
         }
-        p {
-            font-size: 1.2em;
-            color: #333;
+        .priority-text {
+            margin: 0;
+            flex-grow: 1;
+            text-align: left;
+            padding-left: 10px;
         }
-        a {
-            color: #007bff;
-            text-decoration: none;
+        .delete-form, .edit-form {
+            margin: 0;
         }
-        a:hover {
-            text-decoration: underline;
+        button[name="delete"], button[name="edit"] {
+            background-color: #f44336;
+            color: white;
+            border: none;
+            padding: 5px 10px;
+            margin: 0 5px;
+            cursor: pointer;
+        }
+        button[name="edit"] {
+            background-color: #2196F3; /* رنگ آبی برای دکمه ویرایش */
+        }
+        .modal {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border: 1px solid #ddd;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.1);
+            z-index: 1000;
+        }
+        .modal-content {
+            display: flex;
+            flex-direction: column;
+        }
+        .modal input, .modal select {
+            margin: 5px 0;
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+        }
+        .modal button {
+            margin-top: 10px;
+            padding: 5px 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            cursor: pointer;
+        }
+        .modal button:hover {
+            background-color: #45a049;
+        }
+        .date-inputs, .date-inputs-modal {
+            display: flex;
+            gap: 5px;
+            margin: 5px auto;
+            justify-content: center;
+        }
+        .date-input, .date-input-modal {
+            padding: 5px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            width: 60px;
         }
     </style>
 </head>
 <body>
-    <h1>Project Task Manager</h1>
-    <p>A task management application to help users organize and track their daily tasks efficiently.</p>
-    <p>This project requires a server to run (e.g., Flask).</p>
-    <p><a href="https://project-task-manager-6dvb.onrender.com" target="_blank">View Live Demo</a></p>
-    <p>To see the source code and instructions, visit the GitHub repository:</p>
-    <p><a href="https://github.com/majid673/project-task-manager" target="_blank">View on GitHub</a></p>
+    <h1>Automatic Task Scheduler</h1>
+    <form method="POST" action="/">
+        <input type="text" name="title" placeholder="Task Title" required>
+        <input type="number" name="duration" placeholder="Duration (minutes)" required>
+        <div class="date-inputs">
+            <input type="number" name="day" placeholder="DD" class="date-input" min="1" max="31" required>
+            <input type="number" name="month" placeholder="MM" class="date-input" min="1" max="12" required>
+            <input type="number" name="year" placeholder="YYYY" class="date-input" min="2025" max="2100" required>
+        </div>
+        <select name="priority" required>
+            <option value="High">High</option>
+            <option value="Medium" selected>Medium</option>
+            <option value="Low">Low</option>
+        </select>
+        <button type="submit">Add Task</button>
+    </form>
+    <h2>Scheduled Tasks</h2>
+    <ul id="tasksList">
+        {% for index, task in tasks %}
+        <li class="task-item" data-id="{{ index }}">
+            <div class="task-details">
+                {{ task.title }} - Duration: {{ task.duration }} min - Deadline: {{ task.deadline }}
+            </div>
+            <div class="task-actions">
+                <p class="priority-text">Priority: {{ task.priority }}</p>
+                <button type="button" name="edit" onclick="openEditModal({{ index }})">Edit</button>
+                <form method="POST" class="delete-form">
+                    <button type="submit" name="delete" value="{{ index }}">Delete</button>
+                </form>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <input type="text" id="editTitle" placeholder="Task Title" required>
+            <input type="number" id="editDuration" placeholder="Duration (minutes)" required>
+            <div class="date-inputs-modal">
+                <input type="number" id="editDay" placeholder="DD" class="date-input-modal" min="1" max="31" required>
+                <input type="number" id="editMonth" placeholder="MM" class="date-input-modal" min="1" max="12" required>
+                <input type="number" id="editYear" placeholder="YYYY" class="date-input-modal" min="2025" max="2100" required>
+            </div>
+            <select id="editPriority" required>
+                <option value="High">High</option>
+                <option value="Medium">Medium</option>
+                <option value="Low">Low</option>
+            </select>
+            <button onclick="saveEdit()">Save Changes</button>
+            <button onclick="closeModal()">Cancel</button>
+        </div>
+    </div>
+
+    <script>
+        const dayInput = document.querySelector('input[name="day"]');
+        const monthInput = document.querySelector('input[name="month"]');
+        const yearInput = document.querySelector('input[name="year"]');
+
+        function moveFocus(current, next) {
+            if (current.value.length === current.maxLength || (current.value && parseInt(current.value) >= parseInt(current.max))) {
+                next.focus();
+            }
+        }
+
+        dayInput.addEventListener("input", function(e) {
+            const value = e.target.value;
+            if (value.length === 2 || (value && parseInt(value) > 31)) {
+                moveFocus(dayInput, monthInput);
+            }
+        });
+
+        monthInput.addEventListener("input", function(e) {
+            const value = e.target.value;
+            if (value.length === 2 || (value && parseInt(value) > 12)) {
+                moveFocus(monthInput, yearInput);
+            }
+        });
+
+        yearInput.addEventListener("input", function(e) {
+            const value = e.target.value;
+            if (value.length === 4 || (value && parseInt(value) > 2100)) {
+                yearInput.blur();
+            }
+        });
+
+        // مدیریت ویرایش تسک
+        const modal = document.getElementById("editModal");
+        let currentTaskIndex = null;
+
+        console.log("Tasks loaded:", {{ tasks|tojson|safe }});
+
+        window.tasks = {{ tasks|tojson|safe }}; // اضافه کردن تسک‌ها به عنوان متغیر جهانی
+
+        function openEditModal(index) {
+            console.log("Edit button clicked for index:", index);
+            currentTaskIndex = index;
+            const task = window.tasks.find(t => t.id === index);
+            if (task) {
+                console.log("Task found:", task);
+                try {
+                    document.getElementById("editTitle").value = task.title || "";
+                    document.getElementById("editDuration").value = task.duration || 0;
+                    document.getElementById("editDay").value = task.deadline?.split('-')[2] || 1;
+                    document.getElementById("editMonth").value = task.deadline?.split('-')[1] || 1;
+                    document.getElementById("editYear").value = task.deadline?.split('-')[0] || 2025;
+                    document.getElementById("editPriority").value = task.priority || "Medium";
+                    modal.style.display = "block";
+                    setupModalFocus();
+                } catch (error) {
+                    console.error("Error setting modal values:", error);
+                }
+            } else {
+                console.error("Task not found at index:", index);
+            }
+        }
+
+        function saveEdit() {
+            const title = document.getElementById("editTitle").value;
+            const duration = document.getElementById("editDuration").value;
+            const day = document.getElementById("editDay").value;
+            const month = document.getElementById("editMonth").value;
+            const year = document.getElementById("editYear").value;
+            const priority = document.getElementById("editPriority").value;
+
+            console.log("Saving edit for index:", currentTaskIndex, "with data:", { title, duration, day, month, year, priority });
+
+            fetch(`/edit_task/${currentTaskIndex}`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    title: title,
+                    duration: duration,
+                    day: day,
+                    month: month,
+                    year: year,
+                    priority: priority
+                })
+            })
+            .then(response => {
+                console.log("Fetch response received with status:", response.status, response.statusText);
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log("Fetch response data:", data);
+                if (data.status === "success") {
+                    console.log("Edit successful, updating single task:", data.task);
+                    const taskElement = document.querySelector(`#tasksList li[data-id="${currentTaskIndex}"]`);
+                    if (taskElement) {
+                        const taskDetails = taskElement.querySelector('.task-details');
+                        const priorityText = taskElement.querySelector('.priority-text');
+                        taskDetails.textContent = `${data.task.title} - Duration: ${data.task.duration} min - Deadline: ${data.task.deadline}`;
+                        priorityText.textContent = `Priority: ${data.task.priority}`;
+                        window.tasks = window.tasks.map(t => t.id === currentTaskIndex ? data.task : t);
+                        console.log("Updated task in DOM and window.tasks:", window.tasks.find(t => t.id === currentTaskIndex));
+                    } else {
+                        console.error("Task element not found for index:", currentTaskIndex);
+                        updateTaskList(data.tasks);
+                    }
+                } else {
+                    console.error("Edit failed:", data.message);
+                    alert("Error: " + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Fetch error:', error);
+                alert("An error occurred while saving the task: " + error.message);
+            });
+
+            closeModal();
+        }
+
+        function closeModal() {
+            modal.style.display = "none";
+        }
+
+        window.addEventListener("click", function(event) {
+            if (event.target == modal) {
+                closeModal();
+            }
+        });
+
+        const editTitle = document.getElementById("editTitle");
+        const editDuration = document.getElementById("editDuration");
+        const editDay = document.getElementById("editDay");
+        const editMonth = document.getElementById("editMonth");
+        const editYear = document.getElementById("editYear");
+        const editPriority = document.getElementById("editPriority");
+
+        function setupModalFocus() {
+            console.log("Setting up modal focus...");
+            editTitle.addEventListener("keypress", function(e) {
+                console.log("Title keypress:", e.key);
+                if (e.key === "Enter") {
+                    e.preventDefault();
+                    editDuration.focus();
+                }
+            });
+
+            editDuration.addEventListener("input", function(e) {
+                console.log("Duration input changed:", e.target.value);
+                if (e.target.value.length >= 2) {
+                    editDay.focus();
+                }
+            });
+
+            editDay.addEventListener("input", function(e) {
+                console.log("Day input changed:", e.target.value);
+                const value = e.target.value;
+                if (value.length === 2 && parseInt(value) <= 31) {
+                    editMonth.focus();
+                }
+            });
+
+            editMonth.addEventListener("input", function(e) {
+                console.log("Month input changed:", e.target.value);
+                const value = e.target.value;
+                if (value.length === 2 && parseInt(value) <= 12) {
+                    editYear.focus();
+                }
+            });
+
+            editYear.addEventListener("input", function(e) {
+                console.log("Year input changed:", e.target.value);
+                const value = e.target.value;
+                if (value.length === 4 && parseInt(value) >= 2025 && parseInt(value) <= 2100) {
+                    editPriority.focus();
+                }
+            });
+
+            editPriority.addEventListener("change", function(e) {
+                console.log("Priority changed:", e.target.value);
+                document.querySelector('.modal button[onclick="saveEdit()"]').focus();
+            });
+        }
+
+        modal.addEventListener("transitionend", function(e) {
+            if (e.propertyName === 'display' && modal.style.display === 'block') {
+                console.log("Modal fully displayed, setting up focus...");
+                setupModalFocus();
+            }
+        });
+
+        function updateTaskList(updated_tasks) {
+            const tasksList = document.getElementById("tasksList");
+            tasksList.innerHTML = "";
+            updated_tasks.forEach(item => {
+                const li = document.createElement("li");
+                li.className = "task-item";
+                li.setAttribute("data-id", item.index);
+                li.innerHTML = `
+                    <div class="task-details">
+                        ${item.task.title} - Duration: ${item.task.duration} min - Deadline: ${item.task.deadline}
+                    </div>
+                    <div class="task-actions">
+                        <p class="priority-text">Priority: ${item.task.priority}</p>
+                        <button type="button" name="edit" onclick="openEditModal(${item.index})">Edit</button>
+                        <form method="POST" class="delete-form">
+                            <button type="submit" name="delete" value="${item.index}">Delete</button>
+                        </form>
+                    </div>
+                `;
+                tasksList.appendChild(li);
+            });
+            window.tasks = updated_tasks.map(item => item.task);
+        }
+    </script>
 </body>
 </html>
